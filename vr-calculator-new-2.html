@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VR Calculator">
+<meta name="theme-color" content="#f59e0b">
+<title>VR Calculator · TQQQ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e8e4dc; font-family: 'Courier New', monospace; min-height: 100vh; padding-bottom: 40px; }
+  input[type=range] { accent-color: #f59e0b; width: 100%; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type=date] { color-scheme: dark; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #111; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .fade-in { animation: fadeIn 0.3s ease forwards; }
+  .sp { animation: pulse 2s infinite; }
+  button { cursor: pointer; font-family: inherit; }
+  textarea { resize: none; font-family: inherit; }
+  textarea:focus, input:focus { outline: none; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s ease forwards; }
+  .card { background: #111118; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .label { font-size: 10px; color: #555; letter-spacing: 2px; margin-bottom: 12px; }
+  .field-label { font-size: 11px; color: #888; margin-bottom: 6px; }
+  .btn-primary { width: 100%; padding: 11px 0; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; letter-spacing: 1px; transition: background 0.3s; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+  .mini-card { background: #0d0d15; border-radius: 9px; padding: 12px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1a1a22; font-size: 11px; }
+  .setting-input { width: 100%; background: #0d0d15; border: 1px solid #2a2a3a; border-radius: 8px; padding: 10px 12px; color: #e8e4dc; font-size: 15px; font-family: inherit; font-weight: 700; }
+  .setting-input:focus { border-color: #f59e0b; }
+  .saved-badge { display:none; font-size:10px; color:#22c55e; margin-top:6px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div style="text-align:center; padding:22px 16px 0">
+  <div style="font-size:36px; font-weight:900; letter-spacing:6px; color:#f59e0b; text-shadow:0 0 20px #f59e0b">VR CALCULATOR</div>
+  <div style="font-size:10px; color:#444; letter-spacing:3px; margin-top:3px">VALUE REBALANCING · TQQQ · 라오어 전략</div>
+  <div style="display:inline-flex;margin-top:12px;background:#111118;border-radius:20px;padding:3px;gap:2px">
+    <button id="btn-krw" onclick="setCurrency('KRW')" style="padding:5px 18px;border-radius:16px;border:none;font-size:11px;font-weight:700;background:#f59e0b;color:#0a0a0f;font-family:inherit;cursor:pointer;transition:all 0.2s">₩ 원화</button>
+    <button id="btn-usd" onclick="setCurrency('USD')" style="padding:5px 18px;border-radius:16px;border:none;font-size:11px;font-weight:700;background:transparent;color:#555;font-family:inherit;cursor:pointer;transition:all 0.2s">$ 달러</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex; margin:18px 16px 0; background:#111118; border-radius:10px; padding:4px; gap:2px">
+  <button class="tab-btn btn-primary" data-tab="calc"    style="flex:1;padding:8px 0;border-radius:7px;font-size:10px;background:#f59e0b;color:#0a0a0f">📊 계산기</button>
+  <button class="tab-btn btn-primary" data-tab="deposit" style="flex:1;padding:8px 0;border-radius:7px;font-size:10px;background:transparent;color:#555;border:none">💰 적립</button>
+  <button class="tab-btn btn-primary" data-tab="history" style="flex:1;padding:8px 0;border-radius:7px;font-size:10px;background:transparent;color:#555;border:none">📝 기록</button>
+  <button class="tab-btn btn-primary" data-tab="chart"   style="flex:1;padding:8px 0;border-radius:7px;font-size:10px;background:transparent;color:#555;border:none">📈 차트</button>
+  <button class="tab-btn btn-primary" data-tab="settings" style="flex:1;padding:8px 0;border-radius:7px;font-size:10px;background:transparent;color:#555;border:none">⚙️ 설정</button>
+</div>
+
+<div style="padding:14px 16px 0">
+
+  <!-- ── 계산기 탭 ── -->
+  <div id="tab-calc" class="tab-content active">
+    <div class="card" style="border:1px solid #1e2a1e">
+      <div class="label">투자 현황</div>
+      <div class="grid2">
+        <div class="mini-card" style="border:1px solid #f59e0b18">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">총 투입 원금</div>
+          <div id="total-deposited" style="font-size:14px;font-weight:700;color:#f59e0b">-</div>
+          <div id="deposit-summary" style="font-size:9px;color:#333;margin-top:3px">-</div>
+        </div>
+        <div class="mini-card" style="border:1px solid #a78bfa18">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">현금 풀</div>
+          <div id="cash-pool-display" style="font-size:14px;font-weight:700;color:#a78bfa">-</div>
+          <div style="font-size:9px;color:#333;margin-top:3px">매수 가능 재원</div>
+        </div>
+        <div class="mini-card" style="border:1px solid #60a5fa18">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">TQQQ 초기 매수</div>
+          <div id="tqqq-initial-display" style="font-size:14px;font-weight:700;color:#60a5fa">-</div>
+          <div id="tqqq-shares" style="font-size:9px;color:#333;margin-top:3px">-</div>
+        </div>
+        <div class="mini-card" style="border:1px solid #34d39918">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">다음 적립일</div>
+          <div id="d-day" style="font-size:14px;font-weight:700;color:#34d399">D-?</div>
+          <div id="next-deposit-info" style="font-size:9px;color:#333;margin-top:3px">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #222">
+      <div class="label">BAND & RATIO</div>
+      <div class="grid2" style="gap:12px">
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;color:#888">현금 비율 (Cash Ratio)</span>
+            <span id="cash-ratio-label" style="font-size:12px;font-weight:700;color:#a78bfa">50%</span>
+          </div>
+          <input type="range" id="cash-ratio" min="10" max="70" step="5" value="50">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;color:#888">하단 밴드 (Lower Band)</span>
+            <span id="lower-band-label" style="font-size:12px;font-weight:700;color:#22c55e">80%</span>
+          </div>
+          <input type="range" id="lower-band" min="60" max="95" value="80" style="accent-color:#22c55e">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;color:#888">상단 밴드 (Upper Band)</span>
+            <span id="upper-band-label" style="font-size:12px;font-weight:700;color:#ef4444">120%</span>
+          </div>
+          <input type="range" id="upper-band" min="105" max="160" value="120" style="accent-color:#ef4444">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:11px;color:#888">적립일</span>
+            <span id="deposit-day-label" style="font-size:12px;font-weight:700;color:#34d399">매월 23일</span>
+          </div>
+          <input type="range" id="deposit-day" min="1" max="28" value="23" style="accent-color:#34d399">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #2a2a3a">
+      <div class="label">현재 TQQQ 평가금</div>
+      <div style="position:relative">
+        <span id="cv-symbol" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#f59e0b;font-size:15px">₩</span>
+        <input type="number" id="current-value" style="width:100%;background:#0d0d15;border:1px solid #333;border-radius:8px;padding:12px 12px 12px 28px;color:#e8e4dc;font-size:20px;font-family:inherit;font-weight:700" placeholder="0">
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#555">
+        <span>기준선: <span id="baseline-display">-</span></span>
+        <span>기준선 대비: <span id="pct-display" style="color:#f59e0b">-</span></span>
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #222">
+      <div class="label">BAND VISUALIZER</div>
+      <div style="position:relative;height:42px;border-radius:6px;overflow:hidden;background:#0a0a0f">
+        <div id="viz-lower-zone" style="position:absolute;left:0;height:100%;background:rgba(34,197,94,0.10)"></div>
+        <div id="viz-mid-zone" style="position:absolute;height:100%;background:rgba(245,158,11,0.09)"></div>
+        <div id="viz-upper-zone" style="position:absolute;height:100%;background:rgba(239,68,68,0.10)"></div>
+        <div id="viz-lower-line" style="position:absolute;top:0;bottom:0;width:2px;background:#22c55e;opacity:0.7"></div>
+        <div id="viz-base-line" style="position:absolute;top:0;bottom:0;width:2px;background:#f59e0b;opacity:0.8"></div>
+        <div id="viz-upper-line" style="position:absolute;top:0;bottom:0;width:2px;background:#ef4444;opacity:0.7"></div>
+        <div id="viz-cursor" style="position:absolute;top:50%;width:14px;height:14px;border-radius:50%;border:2px solid #0a0a0f;z-index:2;transition:left 0.3s;display:none"></div>
+        <div id="viz-lower-lbl" style="position:absolute;top:3px;font-size:8px;color:#22c55e;transform:translateX(-50%)">80%</div>
+        <div id="viz-base-lbl" style="position:absolute;top:3px;font-size:8px;color:#f59e0b;transform:translateX(-50%)">기준</div>
+        <div id="viz-upper-lbl" style="position:absolute;top:3px;font-size:8px;color:#ef4444;transform:translateX(-50%)">120%</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:#444">
+        <span>🟢 <span id="lower-val">-</span> 이하</span>
+        <span>🟡 홀드</span>
+        <span>🔴 <span id="upper-val">-</span> 이상</span>
+      </div>
+    </div>
+
+    <div id="signal-box" class="card" style="border:1px solid #333;display:none;position:relative">
+      <div id="signal-dot" class="sp" style="position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%;display:none"></div>
+      <div class="label">SIGNAL</div>
+      <div id="signal-title" style="font-size:15px;font-weight:700;margin-bottom:4px"></div>
+      <div id="signal-msg" style="font-size:12px;color:#888;margin-bottom:4px"></div>
+      <div id="signal-warn" style="display:none;font-size:10px;color:#f59e0b;padding:5px 9px;background:#f59e0b12;border-radius:5px;margin-bottom:8px"></div>
+      <div id="signal-detail" style="display:none">
+        <div class="grid2" style="margin-top:10px">
+          <div style="background:#0a0a0f;border-radius:7px;padding:10px">
+            <div id="signal-action-label" style="font-size:9px;color:#444;margin-bottom:3px">금액</div>
+            <div id="signal-amount" style="font-size:15px;font-weight:700"></div>
+          </div>
+          <div style="background:#0a0a0f;border-radius:7px;padding:10px">
+            <div style="font-size:9px;color:#444;margin-bottom:3px">약 수량</div>
+            <div id="signal-shares" style="font-size:15px;font-weight:700;color:#e8e4dc"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding:9px 12px;background:#0a0a0f;border-radius:7px">
+          <div style="font-size:9px;color:#444;margin-bottom:5px">리밸런싱 후 예상</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:#60a5fa">TQQQ <span id="after-tqqq"></span></span>
+            <span style="color:#a78bfa">현금 <span id="after-cash"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #1e2a1e">
+      <div class="label">오늘 기록 저장</div>
+      <textarea id="record-memo" rows="2" placeholder="메모 (선택)" style="width:100%;background:#0d0d15;border:1px solid #222;border-radius:7px;padding:8px 10px;color:#aaa;font-size:11px;margin-bottom:10px"></textarea>
+      <button id="save-btn" class="btn-primary" style="background:#f59e0b;color:#0a0a0f">💾 기록 저장</button>
+    </div>
+
+    <div class="grid3">
+      <div style="background:#111118;border:1px solid #22c55e18;border-radius:9px;padding:11px;text-align:center">
+        <div style="font-size:8px;color:#444;letter-spacing:1px;margin-bottom:4px">하단 매수선</div>
+        <div id="lower-card" style="font-size:11px;font-weight:700;color:#22c55e">-</div>
+        <div id="lower-sub" style="font-size:9px;color:#22c55e;opacity:0.5;margin-top:2px">≤80%</div>
+      </div>
+      <div style="background:#111118;border:1px solid #f59e0b18;border-radius:9px;padding:11px;text-align:center">
+        <div style="font-size:8px;color:#444;letter-spacing:1px;margin-bottom:4px">기준선</div>
+        <div id="base-card" style="font-size:11px;font-weight:700;color:#f59e0b">-</div>
+        <div style="font-size:9px;color:#f59e0b;opacity:0.5;margin-top:2px">오늘</div>
+      </div>
+      <div style="background:#111118;border:1px solid #ef444418;border-radius:9px;padding:11px;text-align:center">
+        <div style="font-size:8px;color:#444;letter-spacing:1px;margin-bottom:4px">상단 매도선</div>
+        <div id="upper-card" style="font-size:11px;font-weight:700;color:#ef4444">-</div>
+        <div id="upper-sub" style="font-size:9px;color:#ef4444;opacity:0.5;margin-top:2px">≥120%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 적립 탭 ── -->
+  <div id="tab-deposit" class="tab-content">
+    <div class="card" style="border:1px solid #1a2a1a">
+      <div class="label">적립 설정</div>
+      <div class="grid2" style="margin-bottom:14px">
+        <div class="mini-card" style="border:1px solid #34d39930">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">월 적립금</div>
+          <div id="monthly-display" style="font-size:17px;font-weight:700;color:#34d399">-</div>
+          <input type="range" id="monthly-amt" min="50000" max="2000000" step="50000" value="200000" style="margin-top:8px;accent-color:#34d399">
+        </div>
+        <div class="mini-card" style="border:1px solid #34d39930">
+          <div style="font-size:9px;color:#444;margin-bottom:4px">적립일</div>
+          <div id="deposit-day-display" style="font-size:17px;font-weight:700;color:#34d399">매월 23일</div>
+          <input type="range" id="deposit-day2" min="1" max="28" value="23" style="margin-top:8px;accent-color:#34d399">
+        </div>
+      </div>
+      <div style="background:#0a0a0f;border-radius:9px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:9px;color:#444;margin-bottom:3px">다음 적립일</div>
+          <div id="next-date-display" style="font-size:13px;font-weight:700;color:#34d399">-</div>
+        </div>
+        <div style="text-align:right">
+          <div id="d-day2" style="font-size:24px;font-weight:700;color:#34d399">D-?</div>
+          <div id="next-amt-display" style="font-size:9px;color:#444">- 입금 예정</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #1a2a1a">
+      <div class="label">적립 실행</div>
+      <div style="position:relative;margin-bottom:10px">
+        <span id="dep-symbol" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#34d399;font-size:15px">₩</span>
+        <input type="number" id="deposit-input" style="width:100%;background:#0d0d15;border:1px solid #2a3a2a;border-radius:8px;padding:12px 12px 12px 28px;color:#e8e4dc;font-size:18px;font-family:inherit;font-weight:700">
+      </div>
+      <textarea id="deposit-note" rows="2" placeholder="메모 (예: 5월 정기 적립)" style="width:100%;background:#0d0d15;border:1px solid #222;border-radius:7px;padding:8px 10px;color:#aaa;font-size:11px;margin-bottom:10px"></textarea>
+      <button id="deposit-btn" class="btn-primary" style="background:#34d399;color:#0a0a0f">💰 현금 풀에 추가</button>
+      <div style="margin-top:10px;font-size:10px;color:#555;text-align:center">적립금은 현금 풀에 쌓이며, 하단 밴드 (Lower Band) 이탈 시 TQQQ 매수에 사용됩니다</div>
+    </div>
+
+    <div class="card" style="border:1px solid #222">
+      <div class="label">적립 요약</div>
+      <div class="stat-row"><span style="color:#555">초기 시드</span><span id="stat-seed" style="font-weight:700">-</span></div>
+      <div class="stat-row"><span style="color:#555">총 적립 횟수</span><span id="dep-count" style="font-weight:700;color:#34d399">0회</span></div>
+      <div class="stat-row"><span style="color:#555">총 적립 금액</span><span id="dep-total" style="font-weight:700;color:#34d399">0원</span></div>
+      <div class="stat-row"><span style="color:#555">총 투입 원금</span><span id="dep-grand" style="font-weight:700;color:#f59e0b">-</span></div>
+      <div class="stat-row" style="border:none"><span style="color:#555">현재 현금 풀</span><span id="dep-cash" style="font-weight:700;color:#a78bfa">-</span></div>
+    </div>
+
+    <div style="font-size:10px;color:#555;letter-spacing:2px;margin-bottom:10px">적립 이력</div>
+    <div id="deposit-list"></div>
+
+    <div class="card" style="border:1px solid #222;margin-top:6px">
+      <div class="label">12개월 적립 플랜</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr>
+            <th style="padding:5px 6px;text-align:right;color:#444;border-bottom:1px solid #1a1a22;font-weight:400">기간</th>
+            <th style="padding:5px 6px;text-align:right;color:#444;border-bottom:1px solid #1a1a22;font-weight:400">투입원금</th>
+            <th style="padding:5px 6px;text-align:right;color:#444;border-bottom:1px solid #1a1a22;font-weight:400">현금풀</th>
+            <th style="padding:5px 6px;text-align:right;color:#444;border-bottom:1px solid #1a1a22;font-weight:400">기준선</th>
+          </tr></thead>
+          <tbody id="projection-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 기록 탭 ── -->
+  <div id="tab-history" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div id="record-count" style="font-size:11px;color:#555">총 0건</div>
+      <button id="clear-records" style="background:none;border:1px solid #2a2a2a;border-radius:6px;padding:3px 10px;color:#444;font-size:10px">전체 삭제</button>
+    </div>
+    <div id="record-list"></div>
+  </div>
+
+  <!-- ── 차트 탭 ── -->
+  <div id="tab-chart" class="tab-content">
+    <div id="chart-empty" style="text-align:center;padding:60px 0;color:#2a2a2a">
+      <div style="font-size:30px;margin-bottom:10px">📉</div>
+      <div style="font-size:11px">기록 2개 이상 필요해요</div>
+    </div>
+    <div id="chart-content" style="display:none">
+      <div class="card" style="border:1px solid #222">
+        <div class="label">TQQQ 평가금 추이</div>
+        <svg id="chart-svg" viewBox="0 0 340 175" style="width:100%;height:auto"></svg>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:9px">
+          <span style="color:#60a5fa">━ 평가금</span>
+          <span style="color:#f59e0b">╌ 기준선</span>
+          <span style="color:#22c55e">╌ 하단</span>
+          <span style="color:#ef4444">╌ 상단</span>
+        </div>
+      </div>
+      <div class="card" style="border:1px solid #222;margin-top:12px">
+        <div class="label">요약 통계</div>
+        <div class="stat-row"><span style="color:#555">총 기록</span><span id="stat-count" style="font-weight:700">-</span></div>
+        <div class="stat-row"><span style="color:#555">최고 평가금</span><span id="stat-max" style="font-weight:700;color:#22c55e">-</span></div>
+        <div class="stat-row"><span style="color:#555">최저 평가금</span><span id="stat-min" style="font-weight:700;color:#ef4444">-</span></div>
+        <div class="stat-row"><span style="color:#555">최근 평가금</span><span id="stat-last" style="font-weight:700;color:#60a5fa">-</span></div>
+        <div class="stat-row"><span style="color:#555">매수 신호</span><span id="stat-buy" style="font-weight:700;color:#22c55e">-</span></div>
+        <div class="stat-row"><span style="color:#555">매도 신호</span><span id="stat-sell" style="font-weight:700;color:#ef4444">-</span></div>
+        <div class="stat-row" style="border:none"><span style="color:#555">총 적립</span><span id="stat-dep" style="font-weight:700;color:#34d399">-</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 설정 탭 ── -->
+  <div id="tab-settings" class="tab-content">
+
+    <div class="card" style="border:1px solid #2a2040">
+      <div class="label">💰 초기 투자 설정 (Initial Setup)</div>
+      <div style="margin-bottom:14px">
+        <div class="field-label">초기 시드 금액 (Seed Amount)</div>
+        <input type="number" id="set-seed" class="setting-input" placeholder="2000000">
+      </div>
+      <div style="margin-bottom:14px">
+        <div class="field-label">투자 시작일 (Start Date)</div>
+        <input type="date" id="set-start-date" class="setting-input">
+      </div>
+      <div style="margin-bottom:0">
+        <div class="field-label">월 정기 적립금 (Monthly Deposit)</div>
+        <input type="number" id="set-monthly" class="setting-input" placeholder="200000">
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #2a2040">
+      <div class="label">📈 기준선 & 밴드 설정</div>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span class="field-label" style="margin:0">연간 기준선 상승률 (Annual Growth Rate)</span>
+          <span id="set-annual-label" style="font-size:12px;font-weight:700;color:#f59e0b">15%</span>
+        </div>
+        <input type="range" id="set-annual" min="5" max="40" step="1" value="15">
+        <div style="font-size:9px;color:#444;margin-top:4px">나스닥 장기 우상향 가정 (기본 15%)</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span class="field-label" style="margin:0">현금 비율 (Cash Ratio)</span>
+          <span id="set-cash-ratio-label" style="font-size:12px;font-weight:700;color:#a78bfa">50%</span>
+        </div>
+        <input type="range" id="set-cash-ratio" min="10" max="70" step="5" value="50" style="accent-color:#a78bfa">
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span class="field-label" style="margin:0">하단 밴드 (Lower Band)</span>
+          <span id="set-lower-label" style="font-size:12px;font-weight:700;color:#22c55e">80%</span>
+        </div>
+        <input type="range" id="set-lower" min="60" max="95" value="80" style="accent-color:#22c55e">
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span class="field-label" style="margin:0">상단 밴드 (Upper Band)</span>
+          <span id="set-upper-label" style="font-size:12px;font-weight:700;color:#ef4444">120%</span>
+        </div>
+        <input type="range" id="set-upper" min="105" max="160" value="120" style="accent-color:#ef4444">
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #2a2040">
+      <div class="label">💵 TQQQ 주가 & 환율</div>
+
+      <!-- TQQQ 실시간 -->
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="field-label" style="margin:0">TQQQ 현재가 (Current Price, USD)</span>
+          <button onclick="fetchTQQQPrice()" id="fetch-tqqq-btn" style="background:#1d3a5f;border:1px solid #2563eb;border-radius:6px;padding:3px 10px;color:#60a5fa;font-size:10px;font-family:inherit;cursor:pointer">🔄 실시간</button>
+        </div>
+        <input type="number" id="set-tqqq-price" class="setting-input" placeholder="68.5" step="0.1">
+        <div id="tqqq-fetch-status" style="font-size:10px;color:#555;margin-top:4px"></div>
+      </div>
+
+      <!-- 환율 실시간 -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="field-label" style="margin:0">USD/KRW 환율 (Exchange Rate)</span>
+          <button onclick="fetchExchangeRate()" id="fetch-fx-btn" style="background:#1d3a5f;border:1px solid #2563eb;border-radius:6px;padding:3px 10px;color:#60a5fa;font-size:10px;font-family:inherit;cursor:pointer">🔄 실시간</button>
+        </div>
+        <input type="number" id="set-usd-krw" class="setting-input" placeholder="1380">
+        <div id="fx-fetch-status" style="font-size:10px;color:#555;margin-top:4px"></div>
+      </div>
+
+      <div style="margin-top:10px;padding:10px 12px;background:#0d0d15;border-radius:8px">
+        <div style="font-size:9px;color:#444;margin-bottom:4px">주당 원화 가격 (Price per Share)</div>
+        <div id="share-price-display" style="font-size:15px;font-weight:700;color:#60a5fa">-</div>
+      </div>
+    </div>
+
+    <button id="save-settings-btn" class="btn-primary" style="background:#f59e0b;color:#0a0a0f;margin-bottom:8px">💾 설정 저장 (Save Settings)</button>
+    <div id="saved-badge" class="saved-badge">✓ 저장되었습니다</div>
+
+    <div style="margin-top:16px;padding:12px 14px;background:#111118;border-radius:10px;border:1px solid #1a1a1a">
+      <div style="font-size:10px;color:#444;margin-bottom:8px">⚠ 데이터 초기화 (Reset Data)</div>
+      <button id="reset-all-btn" style="background:none;border:1px solid #333;border-radius:6px;padding:6px 14px;color:#555;font-size:11px">모든 기록 및 설정 초기화 (Reset All)</button>
+    </div>
+  </div>
+
+</div>
+
+<div style="font-size:9px;color:#222;text-align:center;margin-top:22px;padding:0 16px">
+  ⚠ 참고용 도구입니다. 모든 투자 결정은 본인 책임입니다.
+</div>
+
+<script>
+// ── Currency ─────────────────────────────────────────
+let currency = "KRW"; // KRW or USD
+
+function setCurrency(c) {
+  currency = c;
+  lsSet("vr-currency", c);
+  document.getElementById("btn-krw").style.background = c==="KRW" ? "#f59e0b" : "transparent";
+  document.getElementById("btn-krw").style.color = c==="KRW" ? "#0a0a0f" : "#555";
+  document.getElementById("btn-usd").style.background = c==="USD" ? "#60a5fa" : "transparent";
+  document.getElementById("btn-usd").style.color = c==="USD" ? "#0a0a0f" : "#555";
+  const sym = c==="KRW" ? "₩" : "$";
+  const symColor = c==="KRW" ? "#f59e0b" : "#60a5fa";
+  document.getElementById("cv-symbol").textContent = sym;
+  document.getElementById("cv-symbol").style.color = symColor;
+  document.getElementById("dep-symbol").textContent = sym;
+  // reset current value input
+  document.getElementById("current-value").value = "";
+  currentValue = 0;
+  updateAll();
+}
+
+// Convert to KRW for internal calcs
+function toKRW(v) { return currency==="USD" ? v * cfg.usdKrw : v; }
+function fromKRW(v) { return currency==="USD" ? v / cfg.usdKrw : v; }
+
+function fmtC(n) {
+  // format in current currency
+  if (currency === "USD") {
+    return "$" + (n / cfg.usdKrw).toLocaleString("en-US", {minimumFractionDigits:0, maximumFractionDigits:0});
+  }
+  return fmt(n);
+}
+
+// ── Storage ──────────────────────────────────────────
+function lsGet(k) { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch{return null;} }
+function lsSet(k,v) { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} }
+
+// ── State ─────────────────────────────────────────────
+let cfg = {
+  seed: 2000000,
+  startDate: "2025-05-23",
+  monthly: 200000,
+  annual: 15,
+  cashRatio: 50,
+  lowerBand: 80,
+  upperBand: 120,
+  depositDay: 23,
+  tqqqPrice: 68.5,
+  usdKrw: 1380,
+};
+let records  = [];
+let deposits = [];
+let currentValue = 0;
+
+function sharePrice() { return cfg.tqqqPrice * cfg.usdKrw; }
+
+function calcBaseline(startVal, startDate, targetDate) {
+  const years = (targetDate - startDate) / (1000*60*60*24*365.25);
+  return startVal * Math.pow(1 + cfg.annual/100, years);
+}
+
+function fmt(n) {
+  if(n>=100000000) return (n/100000000).toFixed(2)+"억원";
+  if(n>=10000) return Math.round(n/10000).toLocaleString()+"만원";
+  return Math.round(n).toLocaleString()+"원";
+}
+function fmtDate(iso) {
+  const d=new Date(iso);
+  return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getDate()).padStart(2,"0");
+}
+
+function derived() {
+  const today = new Date();
+  const startDate = new Date(cfg.startDate);
+  const totalDeps = deposits.reduce((s,d)=>s+d.amount,0);
+  const cashPool  = Math.round(cfg.seed*(cfg.cashRatio/100)) + totalDeps;
+  const tqqqInit  = cfg.seed - Math.round(cfg.seed*(cfg.cashRatio/100));
+  const baseline  = calcBaseline(tqqqInit, startDate, today);
+  const lower     = baseline*(cfg.lowerBand/100);
+  const upper     = baseline*(cfg.upperBand/100);
+  const totalDeposited = cfg.seed + totalDeps;
+  const nextDepDate = (() => {
+    const d=new Date(today); d.setDate(cfg.depositDay);
+    if(d<=today) d.setMonth(d.getMonth()+1);
+    return d;
+  })();
+  const dDays = Math.ceil((nextDepDate-today)/(1000*60*60*24));
+  return { cashPool, tqqqInit, baseline, lower, upper, totalDeposited, nextDepDate, dDays, startDate };
+}
+
+// ── Load ──────────────────────────────────────────────
+function loadAll() {
+  const c = lsGet("vr-cfg");
+  const r = lsGet("vr-records");
+  const d = lsGet("vr-deposits");
+  if(c) Object.assign(cfg, c);
+  if(r) records = r;
+  if(d) deposits = d;
+}
+
+// ── Save settings ──────────────────────────────────────
+function saveCfg() { lsSet("vr-cfg", cfg); }
+
+// ── Update UI ─────────────────────────────────────────
+function updateCalc() {
+  const {cashPool,tqqqInit,baseline,lower,upper,totalDeposited,nextDepDate,dDays} = derived();
+  const cv = currentValue;
+  const pct = baseline>0 ? (cv/baseline*100).toFixed(1) : 0;
+
+  document.getElementById("total-deposited").textContent = fmtC(totalDeposited);
+  document.getElementById("deposit-summary").textContent = `초기 ${fmt(cfg.seed)} + 적립 ${deposits.length}회`;
+  document.getElementById("cash-pool-display").textContent = fmtC(cashPool);
+  document.getElementById("tqqq-initial-display").textContent = fmtC(tqqqInit);
+  document.getElementById("tqqq-shares").textContent = `약 ${Math.floor(tqqqInit/sharePrice())}주`;
+  document.getElementById("d-day").textContent = "D-"+dDays;
+  document.getElementById("next-deposit-info").textContent = `${cfg.depositDay}일 · ${fmt(cfg.monthly)}`;
+
+  document.getElementById("cash-ratio-label").textContent = cfg.cashRatio+"%";
+  document.getElementById("lower-band-label").textContent = cfg.lowerBand+"%";
+  document.getElementById("upper-band-label").textContent = cfg.upperBand+"%";
+  document.getElementById("deposit-day-label").textContent = "매월 "+cfg.depositDay+"일";
+  document.getElementById("cash-ratio").value = cfg.cashRatio;
+  document.getElementById("lower-band").value = cfg.lowerBand;
+  document.getElementById("upper-band").value = cfg.upperBand;
+  document.getElementById("deposit-day").value = cfg.depositDay;
+
+  document.getElementById("baseline-display").textContent = fmtC(Math.round(baseline));
+  const pctEl = document.getElementById("pct-display");
+  pctEl.textContent = pct+"%";
+  pctEl.style.color = cv>=baseline?"#22c55e":"#ef4444";
+
+  // Visualizer
+  const barMin=lower*0.82, barMax=upper*1.18, range=barMax-barMin;
+  const lP=(lower-barMin)/range*100;
+  const uP=(upper-barMin)/range*100;
+  const bP=(baseline-barMin)/range*100;
+  const cP=Math.min(100,Math.max(0,(cv-barMin)/range*100));
+  document.getElementById("viz-lower-zone").style.width=lP+"%";
+  document.getElementById("viz-mid-zone").style.left=lP+"%";
+  document.getElementById("viz-mid-zone").style.width=(uP-lP)+"%";
+  document.getElementById("viz-upper-zone").style.left=uP+"%";
+  document.getElementById("viz-upper-zone").style.right="0";
+  document.getElementById("viz-lower-line").style.left=lP+"%";
+  document.getElementById("viz-base-line").style.left=bP+"%";
+  document.getElementById("viz-upper-line").style.left=uP+"%";
+  document.getElementById("viz-lower-lbl").style.left=lP+"%";
+  document.getElementById("viz-lower-lbl").textContent=cfg.lowerBand+"%";
+  document.getElementById("viz-base-lbl").style.left=bP+"%";
+  document.getElementById("viz-upper-lbl").style.left=uP+"%";
+  document.getElementById("viz-upper-lbl").textContent=cfg.upperBand+"%";
+
+  const cursor=document.getElementById("viz-cursor");
+  if(cv>0){
+    cursor.style.display="block";
+    cursor.style.left=cP+"%";
+    let sc="#f59e0b";
+    if(cv>=upper) sc="#ef4444";
+    else if(cv<=lower) sc="#22c55e";
+    cursor.style.background=sc;
+    cursor.style.boxShadow=`0 0 12px ${sc}`;
+  } else cursor.style.display="none";
+
+  document.getElementById("lower-val").textContent=fmtC(Math.round(lower));
+  document.getElementById("upper-val").textContent=fmtC(Math.round(upper));
+  document.getElementById("lower-card").textContent=fmtC(Math.round(lower));
+  document.getElementById("lower-sub").textContent="≤"+cfg.lowerBand+"%";
+  document.getElementById("base-card").textContent=fmtC(Math.round(baseline));
+  document.getElementById("upper-card").textContent=fmtC(Math.round(upper));
+  document.getElementById("upper-sub").textContent="≥"+cfg.upperBand+"%";
+
+  // Signal
+  const box=document.getElementById("signal-box");
+  if(cv>0){
+    box.style.display="block";
+    let type,color,title,msg,amount=0,afterCash=0,afterTqqq=0,warn=false;
+    if(cv>=upper){
+      type="sell";color="#ef4444";title="🔴 매도 신호";
+      msg=`상단 밴드 (Upper Band)(${cfg.upperBand}%) 돌파 → TQQQ 매도`;
+      amount=cv-baseline;afterCash=cashPool+amount;afterTqqq=cv-amount;
+    } else if(cv<=lower){
+      type="buy";color="#22c55e";title="🟢 매수 신호";
+      msg=`하단 밴드 (Lower Band)(${cfg.lowerBand}%) 이탈 → TQQQ 매수`;
+      amount=Math.min(baseline-cv,cashPool);afterCash=cashPool-amount;afterTqqq=cv+amount;
+      warn=cashPool<(baseline-cv);
+    } else {
+      type="hold";color="#f59e0b";title="🟡 홀드";msg="밴드 내 → 유지 (매매 없음)";
+    }
+    box.style.background=type==="hold"?"#111118":color+"10";
+    box.style.borderColor=color+"35";
+    const dot=document.getElementById("signal-dot");
+    dot.style.display=type==="hold"?"none":"block";
+    dot.style.background=color;dot.style.boxShadow=`0 0 8px ${color}`;
+    document.getElementById("signal-title").textContent=title;
+    document.getElementById("signal-title").style.color=color;
+    document.getElementById("signal-msg").textContent=msg;
+    const wEl=document.getElementById("signal-warn");
+    wEl.style.display=warn?"block":"none";
+    if(warn) wEl.textContent=`⚠ 현금 풀 부족 — ${fmtC(cashPool)} 한도 내 매수`;
+    const det=document.getElementById("signal-detail");
+    if(amount>0){
+      det.style.display="block";
+      document.getElementById("signal-action-label").textContent=type==="buy"?"매수 금액":"매도 금액";
+      document.getElementById("signal-amount").textContent=fmtC(Math.round(amount));
+      document.getElementById("signal-amount").style.color=color;
+      document.getElementById("signal-shares").textContent=Math.ceil(amount/sharePrice())+"주";
+      document.getElementById("after-tqqq").textContent=fmtC(Math.round(afterTqqq));
+      document.getElementById("after-cash").textContent=fmtC(Math.round(afterCash));
+    } else det.style.display="none";
+  } else box.style.display="none";
+}
+
+function updateDeposit() {
+  const {cashPool,tqqqInit,baseline,totalDeposited,nextDepDate,dDays,startDate} = derived();
+  const totalDeps=deposits.reduce((s,d)=>s+d.amount,0);
+  document.getElementById("monthly-display").textContent=fmtC(cfg.monthly);
+  document.getElementById("deposit-day-display").textContent="매월 "+cfg.depositDay+"일";
+  document.getElementById("next-date-display").textContent=fmtDate(nextDepDate.toISOString());
+  document.getElementById("d-day2").textContent="D-"+dDays;
+  document.getElementById("next-amt-display").textContent=fmtC(cfg.monthly)+" 입금 예정";
+  document.getElementById("deposit-input").value=cfg.monthly;
+  document.getElementById("monthly-amt").value=cfg.monthly;
+  document.getElementById("deposit-day2").value=cfg.depositDay;
+  document.getElementById("stat-seed").textContent=fmtC(cfg.seed);
+  document.getElementById("dep-count").textContent=deposits.length+"회";
+  document.getElementById("dep-total").textContent=fmtC(totalDeps);
+  document.getElementById("dep-grand").textContent=fmtC(totalDeposited);
+  document.getElementById("dep-cash").textContent=fmtC(cashPool);
+
+  const list=document.getElementById("deposit-list");
+  if(deposits.length===0){
+    list.innerHTML=`<div style="text-align:center;padding:40px 0;color:#2a2a2a"><div style="font-size:28px;margin-bottom:8px">📭</div><div style="font-size:11px">아직 적립 내역이 없어요</div></div>`;
+  } else {
+    list.innerHTML=deposits.map(dep=>`
+      <div style="background:#111118;border:1px solid #1a2a1a;border-radius:10px;padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#34d399">+${fmt(dep.amount)}</div>
+          <div style="font-size:10px;color:#555;margin-top:3px">${fmtDate(dep.date)}</div>
+          ${dep.note?`<div style="font-size:10px;color:#444;margin-top:2px">📝 ${dep.note}</div>`:""}
+        </div>
+        <button onclick="deleteDeposit(${dep.id})" style="background:none;border:none;cursor:pointer;color:#333;font-size:14px">✕</button>
+      </div>`).join("");
+  }
+
+  const body=document.getElementById("projection-body");
+  let rows="";
+  for(let i=0;i<=12;i++){
+    const d=new Date(startDate); d.setMonth(d.getMonth()+i);
+    const bl=calcBaseline(tqqqInit,startDate,d);
+    const inv=cfg.seed+cfg.monthly*i;
+    const cp=Math.round(cfg.seed*(cfg.cashRatio/100))+cfg.monthly*i;
+    rows+=`<tr style="border-bottom:1px solid #141420">
+      <td style="padding:6px;color:#666;text-align:right">${i===0?"시작":i+"개월"}</td>
+      <td style="padding:6px;color:#f59e0b;text-align:right">${fmt(inv)}</td>
+      <td style="padding:6px;color:#a78bfa;text-align:right">${fmt(cp)}</td>
+      <td style="padding:6px;color:#60a5fa;text-align:right">${fmt(Math.round(bl))}</td>
+    </tr>`;
+  }
+  body.innerHTML=rows;
+}
+
+function updateHistory() {
+  const {tqqqInit}=derived();
+  document.getElementById("record-count").textContent=`총 ${records.length}건`;
+  const sc={buy:"#22c55e",sell:"#ef4444",hold:"#f59e0b"};
+  const sl={buy:"🟢 매수",sell:"🔴 매도",hold:"🟡 홀드"};
+  const list=document.getElementById("record-list");
+  if(records.length===0){
+    list.innerHTML=`<div style="text-align:center;padding:60px 0;color:#2a2a2a"><div style="font-size:30px;margin-bottom:10px">📭</div><div style="font-size:11px">저장된 기록이 없어요</div></div>`;
+  } else {
+    list.innerHTML=records.map(rec=>{
+      const gain=rec.tqqqValue-tqqqInit;
+      const tv=rec.tqqqValue+rec.cashValue;
+      return `<div style="background:#111118;border:1px solid ${sc[rec.signal]}20;border-radius:11px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px">
+          <div>
+            <div style="font-size:13px;font-weight:700">${fmtDate(rec.date)}</div>
+            <div style="font-size:9px;color:#555;margin-top:2px">기준선 대비 <span style="color:${rec.pct>=100?'#22c55e':'#ef4444'}">${rec.pct}%</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;font-weight:700;color:${sc[rec.signal]}">${sl[rec.signal]}</span>
+            <button onclick="deleteRecord(${rec.id})" style="background:none;border:none;cursor:pointer;color:#333;font-size:13px">✕</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+          <div style="background:#0a0a0f;border-radius:7px;padding:10px">
+            <div style="font-size:9px;color:#444;margin-bottom:2px">TQQQ 평가금</div>
+            <div style="font-size:13px;font-weight:700;color:#60a5fa">${fmt(rec.tqqqValue)}</div>
+            <div style="font-size:9px;color:${gain>=0?'#22c55e':'#ef4444'};margin-top:2px">${gain>=0?"▲":"▼"} ${fmt(Math.abs(gain))}</div>
+          </div>
+          <div style="background:#0a0a0f;border-radius:7px;padding:10px">
+            <div style="font-size:9px;color:#444;margin-bottom:2px">현금 풀</div>
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">${fmt(rec.cashValue)}</div>
+            <div style="font-size:9px;color:#444;margin-top:2px">총 ${fmt(tv)}</div>
+          </div>
+        </div>
+        ${rec.memo?`<div style="margin-top:8px;font-size:10px;color:#444;border-top:1px solid #1a1a22;padding-top:7px">📝 ${rec.memo}</div>`:""}
+      </div>`;
+    }).join("");
+  }
+}
+
+function updateChart() {
+  const {tqqqInit,startDate}=derived();
+  const data=[...records].reverse().slice(0,30);
+  if(data.length<2){
+    document.getElementById("chart-empty").style.display="block";
+    document.getElementById("chart-content").style.display="none";
+    return;
+  }
+  document.getElementById("chart-empty").style.display="none";
+  document.getElementById("chart-content").style.display="block";
+  const W=340,H=175,PAD={t:10,r:10,b:28,l:50};
+  const iw=W-PAD.l-PAD.r,ih=H-PAD.t-PAD.b;
+  const vals=data.map(d=>d.tqqqValue);
+  const bls=data.map(d=>calcBaseline(tqqqInit,startDate,new Date(d.date)));
+  const lows=bls.map(b=>b*(cfg.lowerBand/100));
+  const highs=bls.map(b=>b*(cfg.upperBand/100));
+  const allV=[...vals,...lows,...highs];
+  const minV=Math.min(...allV)*0.97,maxV=Math.max(...allV)*1.03;
+  const toX=i=>PAD.l+(i/(data.length-1))*iw;
+  const toY=v=>PAD.t+ih-((v-minV)/(maxV-minV))*ih;
+  const pts=arr=>arr.map((v,i)=>`${toX(i)},${toY(v)}`).join(" ");
+  const yL=[0,1,2,3].map(i=>{const v=minV+((maxV-minV)*i)/3;return{y:toY(v),label:v>=1000000?`${(v/10000).toFixed(0)}만`:`${Math.round(v/1000)}k`};});
+  const step=Math.max(1,Math.floor(data.length/4));
+  const xL=data.reduce((a,d,i)=>{if(i%step===0||i===data.length-1)a.push({x:toX(i),label:fmtDate(d.date).slice(5)});return a;},[]);
+  const sc={buy:"#22c55e",sell:"#ef4444",hold:"#f59e0b"};
+  const dots=data.map((d,i)=>({cx:toX(i),cy:toY(d.tqqqValue),c:sc[d.signal],s:d.signal})).filter(d=>d.s!=="hold");
+  let svg="";
+  yL.forEach(t=>{svg+=`<line x1="${PAD.l}" x2="${W-PAD.r}" y1="${t.y}" y2="${t.y}" stroke="#1a1a22" stroke-width="1"/>`;svg+=`<text x="${PAD.l-4}" y="${t.y+3}" text-anchor="end" font-size="8" fill="#444">${t.label}</text>`;});
+  xL.forEach(t=>{svg+=`<text x="${t.x}" y="${H-5}" text-anchor="middle" font-size="8" fill="#444">${t.label}</text>`;});
+  svg+=`<polyline points="${pts(highs)}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.75"/>`;
+  svg+=`<polyline points="${pts(bls)}" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.75"/>`;
+  svg+=`<polyline points="${pts(lows)}" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.75"/>`;
+  svg+=`<polyline points="${pts(vals)}" fill="none" stroke="#60a5fa" stroke-width="1.5" opacity="0.9"/>`;
+  dots.forEach(d=>{svg+=`<circle cx="${d.cx}" cy="${d.cy}" r="4" fill="${d.c}" stroke="#0a0a0f" stroke-width="1.5"/>`;});
+  document.getElementById("chart-svg").innerHTML=svg;
+  const totalDeps=deposits.reduce((s,d)=>s+d.amount,0);
+  document.getElementById("stat-count").textContent=records.length+"일";
+  document.getElementById("stat-max").textContent=fmtC(Math.max(...records.map(r=>r.tqqqValue)));
+  document.getElementById("stat-min").textContent=fmtC(Math.min(...records.map(r=>r.tqqqValue)));
+  document.getElementById("stat-last").textContent=fmtC(records[0]?.tqqqValue||0);
+  document.getElementById("stat-buy").textContent=records.filter(r=>r.signal==="buy").length+"회";
+  document.getElementById("stat-sell").textContent=records.filter(r=>r.signal==="sell").length+"회";
+  document.getElementById("stat-dep").textContent=fmtC(totalDeps);
+}
+
+function updateSettings() {
+  document.getElementById("set-seed").value=cfg.seed;
+  document.getElementById("set-start-date").value=cfg.startDate;
+  document.getElementById("set-monthly").value=cfg.monthly;
+  document.getElementById("set-annual").value=cfg.annual;
+  document.getElementById("set-annual-label").textContent=cfg.annual+"%";
+  document.getElementById("set-cash-ratio").value=cfg.cashRatio;
+  document.getElementById("set-cash-ratio-label").textContent=cfg.cashRatio+"%";
+  document.getElementById("set-lower").value=cfg.lowerBand;
+  document.getElementById("set-lower-label").textContent=cfg.lowerBand+"%";
+  document.getElementById("set-upper").value=cfg.upperBand;
+  document.getElementById("set-upper-label").textContent=cfg.upperBand+"%";
+  document.getElementById("set-tqqq-price").value=cfg.tqqqPrice;
+  document.getElementById("set-usd-krw").value=cfg.usdKrw;
+  document.getElementById("share-price-display").textContent=fmt(Math.round(cfg.tqqqPrice*cfg.usdKrw))+" / 주";
+}
+
+function updateAll() { updateCalc(); updateDeposit(); updateHistory(); }
+
+// ── Live Data Fetch ──────────────────────────────────
+async function fetchTQQQPrice() {
+  const btn = document.getElementById("fetch-tqqq-btn");
+  const status = document.getElementById("tqqq-fetch-status");
+  btn.textContent = "⏳ 조회 중..."; btn.style.color = "#f59e0b";
+  status.textContent = "";
+  try {
+    // Use Yahoo Finance via allorigins proxy
+    const url = "https://query1.finance.yahoo.com/v8/finance/chart/TQQQ?interval=1d&range=1d";
+    const proxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+    const res = await fetch(proxy, {signal: AbortSignal.timeout(8000)});
+    const json = await res.json();
+    const data = JSON.parse(json.contents);
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (price) {
+      document.getElementById("set-tqqq-price").value = price.toFixed(2);
+      const krw = parseFloat(document.getElementById("set-usd-krw").value) || cfg.usdKrw;
+      document.getElementById("share-price-display").textContent = fmt(Math.round(price * krw)) + " / 주";
+      status.style.color = "#22c55e";
+      status.textContent = "✓ $" + price.toFixed(2) + " (실시간)";
+      btn.textContent = "✓ 완료";
+    } else throw new Error("no price");
+  } catch(e) {
+    status.style.color = "#ef4444";
+    status.textContent = "조회 실패 — 직접 입력해주세요";
+    btn.textContent = "🔄 실시간";
+    btn.style.color = "#60a5fa";
+  }
+  setTimeout(() => { btn.textContent = "🔄 실시간"; btn.style.color = "#60a5fa"; }, 3000);
+}
+
+async function fetchExchangeRate() {
+  const btn = document.getElementById("fetch-fx-btn");
+  const status = document.getElementById("fx-fetch-status");
+  btn.textContent = "⏳ 조회 중..."; btn.style.color = "#f59e0b";
+  status.textContent = "";
+  try {
+    const url = "https://api.exchangerate-api.com/v4/latest/USD";
+    const proxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+    const res = await fetch(proxy, {signal: AbortSignal.timeout(8000)});
+    const json = await res.json();
+    const data = JSON.parse(json.contents);
+    const rate = data?.rates?.KRW;
+    if (rate) {
+      document.getElementById("set-usd-krw").value = Math.round(rate);
+      const price = parseFloat(document.getElementById("set-tqqq-price").value) || cfg.tqqqPrice;
+      document.getElementById("share-price-display").textContent = fmt(Math.round(price * rate)) + " / 주";
+      status.style.color = "#22c55e";
+      status.textContent = "✓ 1USD = " + Math.round(rate) + "원 (실시간)";
+      btn.textContent = "✓ 완료";
+    } else throw new Error("no rate");
+  } catch(e) {
+    status.style.color = "#ef4444";
+    status.textContent = "조회 실패 — 직접 입력해주세요";
+    btn.textContent = "🔄 실시간";
+    btn.style.color = "#60a5fa";
+  }
+  setTimeout(() => { btn.textContent = "🔄 실시간"; btn.style.color = "#60a5fa"; }, 3000);
+}
+
+// ── Event Listeners ───────────────────────────────────
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const tab=btn.dataset.tab;
+    document.querySelectorAll(".tab-content").forEach(t=>t.classList.remove("active"));
+    document.getElementById("tab-"+tab).classList.add("active");
+    document.querySelectorAll(".tab-btn").forEach(b=>{
+      b.style.background=b.dataset.tab===tab?"#f59e0b":"transparent";
+      b.style.color=b.dataset.tab===tab?"#0a0a0f":"#555";
+    });
+    if(tab==="chart") updateChart();
+    if(tab==="settings") updateSettings();
+  });
+});
+
+// Calc sliders
+document.getElementById("cash-ratio").addEventListener("input",e=>{cfg.cashRatio=+e.target.value;document.getElementById("set-cash-ratio").value=e.target.value;saveCfg();updateAll();});
+document.getElementById("lower-band").addEventListener("input",e=>{cfg.lowerBand=+e.target.value;document.getElementById("set-lower").value=e.target.value;saveCfg();updateAll();});
+document.getElementById("upper-band").addEventListener("input",e=>{cfg.upperBand=+e.target.value;document.getElementById("set-upper").value=e.target.value;saveCfg();updateAll();});
+document.getElementById("deposit-day").addEventListener("input",e=>{cfg.depositDay=+e.target.value;document.getElementById("deposit-day2").value=e.target.value;saveCfg();updateAll();});
+document.getElementById("monthly-amt").addEventListener("input",e=>{cfg.monthly=+e.target.value;saveCfg();updateDeposit();});
+document.getElementById("deposit-day2").addEventListener("input",e=>{cfg.depositDay=+e.target.value;document.getElementById("deposit-day").value=e.target.value;saveCfg();updateAll();});
+
+// Settings sliders
+document.getElementById("set-annual").addEventListener("input",e=>{cfg.annual=+e.target.value;document.getElementById("set-annual-label").textContent=e.target.value+"%";});
+document.getElementById("set-cash-ratio").addEventListener("input",e=>{document.getElementById("set-cash-ratio-label").textContent=e.target.value+"%";});
+document.getElementById("set-lower").addEventListener("input",e=>{document.getElementById("set-lower-label").textContent=e.target.value+"%";});
+document.getElementById("set-upper").addEventListener("input",e=>{document.getElementById("set-upper-label").textContent=e.target.value+"%";});
+document.getElementById("set-tqqq-price").addEventListener("input",e=>{
+  const p=parseFloat(e.target.value)||0;
+  const k=parseFloat(document.getElementById("set-usd-krw").value)||1380;
+  document.getElementById("share-price-display").textContent=fmt(Math.round(p*k))+" / 주";
+});
+document.getElementById("set-usd-krw").addEventListener("input",e=>{
+  const p=parseFloat(document.getElementById("set-tqqq-price").value)||0;
+  const k=parseFloat(e.target.value)||0;
+  document.getElementById("share-price-display").textContent=fmt(Math.round(p*k))+" / 주";
+});
+
+// Current value
+document.getElementById("current-value").addEventListener("input",e=>{const raw=parseFloat(e.target.value)||0; currentValue=toKRW(raw); updateCalc();});
+
+// Save record
+document.getElementById("save-btn").addEventListener("click",()=>{
+  if(currentValue<=0) return;
+  const {cashPool,baseline}=derived();
+  const pct=(currentValue/baseline*100);
+  let sig="hold";
+  const upper=baseline*(cfg.upperBand/100);
+  const lower=baseline*(cfg.lowerBand/100);
+  if(currentValue>=upper) sig="sell";
+  else if(currentValue<=lower) sig="buy";
+  const rec={id:Date.now(),date:new Date().toISOString(),tqqqValue:currentValue,cashValue:cashPool,baseline:Math.round(baseline),signal:sig,memo:document.getElementById("record-memo").value,pct:parseFloat(pct.toFixed(1))};
+  records.unshift(rec); lsSet("vr-records",records);
+  document.getElementById("record-memo").value="";
+  const btn=document.getElementById("save-btn");
+  btn.textContent="✓ 저장됨";btn.style.background="#22c55e";
+  setTimeout(()=>{btn.textContent="💾 기록 저장";btn.style.background="#f59e0b";},1500);
+  updateAll();
+});
+
+// Deposit
+document.getElementById("deposit-btn").addEventListener("click",()=>{
+  const rawAmt=parseFloat(document.getElementById("deposit-input").value)||0; const amt=Math.round(toKRW(rawAmt));
+  if(amt<=0) return;
+  const dep={id:Date.now(),date:new Date().toISOString(),amount:amt,note:document.getElementById("deposit-note").value};
+  deposits.unshift(dep); lsSet("vr-deposits",deposits);
+  document.getElementById("deposit-note").value="";
+  const btn=document.getElementById("deposit-btn");
+  btn.textContent="✓ 적립 완료!";btn.style.background="#22c55e";
+  setTimeout(()=>{btn.textContent="💰 현금 풀에 추가";btn.style.background="#34d399";},1500);
+  updateAll();
+});
+
+// Clear records
+document.getElementById("clear-records").addEventListener("click",()=>{
+  if(confirm("모든 기록을 삭제할까요?")){ records=[];lsSet("vr-records",[]);updateAll(); }
+});
+
+// Save settings
+document.getElementById("save-settings-btn").addEventListener("click",()=>{
+  cfg.seed = parseInt(document.getElementById("set-seed").value)||2000000;
+  cfg.startDate = document.getElementById("set-start-date").value||"2025-05-23";
+  cfg.monthly = parseInt(document.getElementById("set-monthly").value)||200000;
+  cfg.annual = parseInt(document.getElementById("set-annual").value)||15;
+  cfg.cashRatio = parseInt(document.getElementById("set-cash-ratio").value)||50;
+  cfg.lowerBand = parseInt(document.getElementById("set-lower").value)||80;
+  cfg.upperBand = parseInt(document.getElementById("set-upper").value)||120;
+  cfg.tqqqPrice = parseFloat(document.getElementById("set-tqqq-price").value)||68.5;
+  cfg.usdKrw = parseInt(document.getElementById("set-usd-krw").value)||1380;
+  saveCfg();
+  updateAll();
+  const badge=document.getElementById("saved-badge");
+  badge.style.display="block";
+  setTimeout(()=>badge.style.display="none",2000);
+});
+
+// Reset all
+document.getElementById("reset-all-btn").addEventListener("click",()=>{
+  if(confirm("모든 기록과 설정을 초기화할까요?")) {
+    localStorage.clear();
+    cfg={seed:2000000,startDate:"2025-05-23",monthly:200000,annual:15,cashRatio:50,lowerBand:80,upperBand:120,depositDay:23,tqqqPrice:68.5,usdKrw:1380};
+    records=[]; deposits=[];
+    updateAll(); updateSettings();
+  }
+});
+
+window.deleteRecord=id=>{records=records.filter(r=>r.id!==id);lsSet("vr-records",records);updateAll();};
+window.deleteDeposit=id=>{deposits=deposits.filter(d=>d.id!==id);lsSet("vr-deposits",deposits);updateAll();};
+
+// Init
+loadAll();
+const savedCurrency = lsGet("vr-currency");
+if(savedCurrency) setCurrency(savedCurrency);
+updateAll();
+updateSettings();
+</script>
+</body>
+</html>
